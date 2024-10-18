@@ -13,49 +13,54 @@
 #define MAX_PASSWORD_LEN 30 //Максимальная длина пароля
 
 //Структура для хранения информации о пользователе
-struct User {   //ОДИН
+struct User {
     int id; //Уникальный id пользователей
     char username[MAX_USERNAME_LEN + 1]; //Имя пользователя 
     char password[MAX_PASSWORD_LEN + 1]; //Пароль пользователя
     int balance; //Баланс пользователя (в копейках)
+    struct Account* primaryAccount;  // Основной счет пользователя
+    struct Goal* goal;
+    struct Contribution* contribution;
+    struct Loan* loan;
 };
 
 
 // Структура для хранения информации о счете
-struct Score { //ДВА
+struct Account {
     char name[50];     // Название счета
     struct User* user;    // Указатель на владельца счета
     struct Transaction* transactions; // Список транзакций на счете
-    struct Score* next;  // Указатель на следующий счет в списке
+    struct Account* next;  // Указатель на следующий счет в списке
 };
 
 // Структура для хранения информации о цели
-struct Goal { //ТРИ
-    char name[50];           // Название цели (например, "Отпуск", "Автомобиль")
+struct Goal {
+    char name[50];            // Название цели (например, "Отпуск", "Автомобиль")
     float targetAmount;       // Целевая сумма 
     float savedAmount;        // Сумма, накопленная на данный момент
-    struct User* user;    // Указатель на владельца цели
+    struct User* user;        // Указатель на владельца цели
     struct Goal* next;        // Указатель на следующую цель в списке
 };
 
 
-struct Transaction { //ЧЕТЫРЕ
+struct Transaction {
     char description[100]; // Описание транзакции
     float amount;          // Сумма транзакции
     char date[11];        // Дата транзакции (DD-MM-YYYY)
     char type[10];        // Тип транзакции (доход/расход)
-    struct Score* Score; // Счет, к которому относится транзакция
+    struct Account* Account; // Счет, к которому относится транзакция
     struct Category* category; // Категория, к которой относится транзакция
     struct Transaction* next;  // Указатель на следующую транзакцию в списке
 };
 
-struct Contribution { //ПЯТЬ
+struct Contribution {
     int percent; //годовые проценты
     int minimum_deposit; //минимальный взнос на вклад  
     struct User* user; //Указатель на пользователя
+    struct Contribution* next;
 };
 //Структура для конвертации баланс в три основные валюты 
-struct Conversion { //ШЕСТЬ
+struct Conversion {
     int USD; //доллар (цент)
     int EUR; //евро (евроцент)
     int CNY; //юань (фынь)
@@ -64,14 +69,14 @@ struct Conversion { //ШЕСТЬ
 
 
 // Структура для хранения информации о категории
-struct Category { //СЕМЬ
+struct Category {
     char name[50];         // Название категории (например, "Продукты", "Транспорт")
     struct Category* next;  // Указатель на следующую категорию в списке
 };
 
 
-// Структура для кредитов
-typedef struct Loan { //ВОСЕМЬ
+// Структура для кредитов 
+struct Loan {
     int amount;              // Сумма кредита
     int interestRate;        // Процентная ставка
     struct User* user;         // Указатель на главную структуру User
@@ -82,210 +87,206 @@ struct Analytics {
     int totalIncome;
     int totalExpense;
     struct User* user;
-    struct Score* score;
+    struct Account* Account;
 };
 
-//Подсчёт количества пользователей
-int getUser() {
-    FILE* file = fopen("User.txt", "r");
-    if (file == NULL) {
-        return 0;
+// Функция для создания нового пользователя
+struct User* createUser(int id, char* username, char* password) {
+    struct User* newUser = (User*)malloc(sizeof(struct User));
+    if (newUser == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
-    int countUser = 0;
-    fprintf(file, "%d\n", countUser);
-    fclose(file);
-    return countUser;
-}
-//Создание нового пользователя
-User creat(int id) {
-    User newUser;
-    newUser.id = id;
-    printf("\nВведите имя: ");
-    scanf("%s", &newUser.username);
-    printf("\nВведите пароль: ");
-    scanf("%s", &newUser.password);
-    newUser.balance = 0.0f;
+    newUser->id = id;
+    strcpy(newUser->username, username);
+    strcpy(newUser->password, password);
+    newUser->balance = 0;
+    newUser->primaryAccount = NULL; // Пока нет счета
     return newUser;
 }
 
-// Функция для чтения аккаунтов из файла
-void loadScores(User Scores[], int* ScoreCount) {
-    FILE* file = fopen("User.txt", "r");
-    if (file == NULL) {
-        printf("Ошибка при открытии файла User.txt\n");
-        return;
+// Функция для добавления нового счета
+struct Account* createAccount(char* name, struct User* user) {
+    struct Account* newAccount = (Account*)malloc(sizeof(struct Account));
+    if (newAccount == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
-    fscanf(file, "%d", ScoreCount); // Считываем количество пользователей
-    for (int i = 0; i < *ScoreCount; i++) {
-        fscanf(file, "%d %s %s %f", &Scores[i].id,
-            Scores[i].username,
-            Scores[i].password,
-            &Scores[i].balance);
-    }
-    fclose(file);
+    strcpy(newAccount->name, name);
+    newAccount->user = user;
+    newAccount->transactions = NULL; // Пока нет транзакций
+    newAccount->next = NULL;
+    return newAccount;
 }
 
-// Функция для сохранения аккаунтов в файл
-void saveScores(User Scores[], int ScoreCount) {
-    FILE* file = fopen("User.txt", "w");
-    if (file == NULL) {
-        printf("Ошибка при открытии файла User.txt\n");
-        return;
+// Функция для добавления новой транзакции
+struct Transaction* createTransaction(char* description, float amount, char* date, char* type, struct Account* account, struct Category* category) {
+    struct Transaction* newTransaction = (Transaction*)malloc(sizeof(struct Transaction));
+    if (newTransaction == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
-    fprintf(file, "%d\n", ScoreCount); // Сохраняем количество пользователей
-    for (int i = 0; i < ScoreCount; i++) {
-        fprintf(file, "%d %s %s %.2f\n", Scores[i].id,
-            Scores[i].username,
-            Scores[i].password,
-            Scores[i].balance);
-    }
-    fclose(file);
+    strcpy(newTransaction->description, description);
+    newTransaction->amount = amount;
+    strcpy(newTransaction->date, date);
+    strcpy(newTransaction->type, type);
+    newTransaction->Account = account;
+    newTransaction->category = category;
+    newTransaction->next = NULL;
+    return newTransaction;
 }
 
-// Функция входа в систему
-User* login(User Scores[], int ScoreCount) {
-    char nickname[MAX_USERNAME_LEN];
-    char password[MAX_PASSWORD_LEN];
-    int flag = 0;
-    int j = 3;
-    do {
-        printf(" У вас есть количетсво попыток: %d", j);
-        printf("\nВведите никнейм: ");
-        scanf("%s", nickname);
-        printf("Введите пароль: ");
-        scanf("%s", password);
-
-        for (int i = 0; i < ScoreCount; i++) {
-            if (strcmp(Scores[i].username, nickname) == 0 &&
-                strcmp(Scores[i].password, password) == 0) {
-                flag = 3;
-                printf("Вход выполнен! Ваш баланс: %.2f\n", Scores[i].balance);
-                return &Scores[i];
-            }
-        }
-        flag++;
-        j = 3 - flag;
-        if (flag <= 2) printf("Неправильный никнейм или пароль.\nПовторите попытку заново.");
-
-    } while (flag <= 2);
-    printf("Вы ввели три раза неправильно данные, поэтому системой будет предложен создать новый аккаунт.\n");
-    return NULL;
+// Функция для добавления новой цели
+struct Goal* createGoal(char* name, int targetAmount, int savedAmount, struct User* user) {
+    struct Goal* newGoal = (Goal*)malloc(sizeof(struct Goal));
+    if (newGoal == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
+    }
+    strcpy(newGoal->name, name);
+    newGoal->targetAmount = targetAmount;
+    newGoal->savedAmount = savedAmount;
+    newGoal->user = user;
+    newGoal->next = NULL;
+    return newGoal;
 }
 
-// Функция для добавления дохода/расхода
-void addFinanceEntry(int userId, float income, float expense) {
-    FILE* file = fopen("Finance.txt", "a");
-    if (file == NULL) {
-        printf("Ошибка при открытии файла Finance.txt\n");
-        return;
+// Функция для добавления нового вклада
+struct Contribution* createContribution(int percent, int minimum_deposit, struct User* user) {
+    struct Contribution* newContribution = (Contribution*)malloc(sizeof(struct Contribution));
+    if (newContribution == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
-    fprintf(file, "%d %.2f %.2f\n", userId, income, expense);
-    fclose(file);
+    newContribution->percent = percent;
+    newContribution->minimum_deposit = minimum_deposit;
+    newContribution->user = user;
+    return newContribution;
 }
 
-// Функция для отображения финансового отчета
-void viewFinanceReport(int userId) {
-    FILE* file = fopen("Finance.txt", "r");
-    if (file == NULL) {
-        printf("Ошибка при открытии файла Finance.txt\n");
-        return;
+// Функция для добавления новой конвертации 
+struct Conversion* createConversion(int USD, int EUR, int CNY, struct User* user) {
+    struct Conversion* newConversion = (Conversion*)malloc(sizeof(struct Conversion));
+    if (newConversion == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
-    
-    float totalIncome = 0.0f, totalExpense = 0.0f;
-    int found = 0;
-    Finance entry;
+    newConversion->USD = USD;
+    newConversion->EUR = EUR;
+    newConversion->CNY = CNY;
+    newConversion->user = user;
+    return newConversion;
+}
 
-    while (fscanf(file, "%d %f %f", &entry.user_id, &entry.income, &entry.expense) != EOF) {
-        if (entry.user_id == userId) {
-            totalIncome += entry.income;
-            totalExpense += entry.expense;
-            found = 1;
-        }
+// Функция для добавления новой категории
+struct Category* createCategory(char* name) {
+    struct Category* newCategory = (Category*)malloc(sizeof(struct Category));
+    if (newCategory == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
     }
+    strcpy(newCategory->name, name);
+    newCategory->next = NULL;
+    return newCategory;
+}
 
-    if (found) {
-        
-        printf("Общий доход: %.2f, Общий расход: %.2f\n", totalIncome, totalExpense);
+struct Loan* createLoan(int amount, int interestRate, struct User* user) {
+    struct Loan* newLoan = (Loan*)malloc(sizeof(struct Loan));
+    if (newLoan == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
+    }
+    newLoan->amount = amount;
+    newLoan->interestRate = interestRate;
+    newLoan->user = user;
+    newLoan->next = NULL;
+    return newLoan;
+}
+
+// Функция для добавления новой аналитики
+struct Analytics* createAccountAnalytics(struct User* user) {
+    struct Analytics* analytics = (Analytics*)malloc(sizeof(struct Analytics));
+    if (analytics == NULL) {
+        perror("Ошибка выделения памяти");
+        exit(1);
+    }
+    analytics->totalIncome = 0;
+    analytics->totalExpense = 0;
+    analytics->user = user;
+    return analytics;
+}
+
+// Функция для добавления транзакции в список транзакций
+void addTransactionToAccount(struct Transaction* transaction, struct Account* account) {
+    if (account->transactions == NULL) {
+        account->transactions = transaction;
     }
     else {
-        printf("Не найдено финансовых записей для этого пользователя.\n");
+        struct Transaction* current = account->transactions;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = transaction;
     }
+}
 
-    fclose(file);
+// Функция для обновления аналитики счета
+void updateAccountAnalytics(struct Analytics* analytics, char* type, int amount) {
+    if (strcmp(type, "income") == 0) {
+        analytics->totalIncome += amount;
+    }
+    else if (strcmp(type, "expense") == 0) {
+        analytics->totalExpense += amount;
+    }
+}
+
+// Функция для добавления цели в список целей
+void addGoalToUser(struct Goal* goal, struct User* user) {
+    if (user->goal == NULL) {
+        user->goal = goal;
+    }
+    else {
+        struct Goal* current = user->goal;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = goal;
+    }
+}
+
+// Функция для добавления вклада в список вкладов
+void addContributionToUser(struct Contribution* contribution, struct User* user) {
+    if (user->contribution == NULL) {
+        user->contribution = contribution;
+    }
+    else {
+        struct Contribution* current = user->contribution;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = contribution;
+    }
+}
+
+
+// Функция для добавления кредита в список кредитов
+void addLoanToUser(struct Loan* loan, struct User* user) {
+    if (user->loan == NULL) {
+        user->loan = loan;
+    }
+    else {
+        struct Loan* current = user->loan;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = loan;
+    }
 }
 
 int main() {
     setlocale(LC_ALL, "Rus");
     printf("Добро пожаловаться в программное обеспечение по учёту финансов!\nДля успешной работы следуйте инструкциям ниже.");
-    int count; //Количество пользователей программы
     
-    count = getUser();
-   
-    User* Scores = (User*)calloc(count, sizeof(User));
-    loadScores(Scores, &count);
-    int choise; //Выбор действия
-    do {
-        printf("\nВыберите действие:\n1 - Войти в аккаунт\n2 - Создать аккаунт\n");
-        scanf("%d", &choise);
-        if (count == 0 && choise == 1) {
-            printf("Пользователь нет! Войти в аккаунт нельзя!"); choise = 0;
-        }
-    } while (choise != 1 && choise != 2);
-    User* currentUser = NULL;
-    if (choise == 1){
-        currentUser = login(Scores, count);
-    }
-    if (choise == 2 || currentUser == NULL) {
-        User NewUser = creat(count + 1);
-        Scores[count] = NewUser; // Добавляем нового пользователя в массив
-        count++; // Увеличиваем счетчик пользователей
-        saveScores(Scores, count); // Сохраняем изменённые данные в файл
-        currentUser = &Scores[count - 1]; // Указываем на нового пользователя
-        printf("Аккаунт создан! Ваш баланс: %.2f\n", currentUser->balance);
-    }
-    // Если пользователь вошел в систему
-    if (currentUser != NULL) {
-        char action;
-        do {
-            printf("Введите 'I' для добавления дохода, 'E' для добавления расхода, 'R' для просмотра отчета, 'Q' для выхода: ");
-            scanf(" %c", &action);
-
-            switch (action) {
-            case 'I':
-            {
-                float income;
-                printf("Введите сумму дохода: ");
-                scanf("%f", &income);
-                addFinanceEntry(currentUser->id, income, 0);
-                currentUser->balance += income;
-                printf("Доход добавлен! Ваш новый баланс: %.2f\n", currentUser->balance);
-                break;
-            }
-            case 'E':
-            {
-                float expense;
-                printf("Введите сумму расхода: ");
-                scanf("%f", &expense);
-                addFinanceEntry(currentUser->id, 0, expense);
-                currentUser->balance -= expense;
-                printf("Расход добавлен! Ваш новый баланс: %.2f\n", currentUser->balance);
-                break;
-            }
-            case 'R':
-                viewFinanceReport(currentUser->id);
-                break;
-            case 'Q':
-                saveScores(Scores, count);
-                printf("Вы вышли из системы.\n");
-                break;
-            default:
-                printf("Неверный ввод.\n");
-                break;
-            }
-        } while (action != 'Q');
-    }    
-    return 0;
-   
 }
 
 
