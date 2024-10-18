@@ -12,19 +12,77 @@
 #define MAX_USERNAME_LEN 30 //Максимальная длина имени
 #define MAX_PASSWORD_LEN 30 //Максимальная длина пароля
 
-// Структура для хранения информации о пользователе
-struct User {
-    int id;
-    char username[MAX_USERNAME_LEN + 1];
-    char password[MAX_PASSWORD_LEN + 1];
-    float balance;
+//Структура для хранения информации о пользователе
+struct User {   //ОДИН
+    int id; //Уникальный id пользователей
+    char username[MAX_USERNAME_LEN + 1]; //Имя пользователя 
+    char password[MAX_PASSWORD_LEN + 1]; //Пароль пользователя
+    int balance; //Баланс пользователя (в копейках)
 };
 
-// Структура для хранения информации о финансовой операции
-struct Finance {
-    int user_id;
-    float income;
-    float expense;
+
+// Структура для хранения информации о счете
+struct Score { //ДВА
+    char name[50];     // Название счета
+    struct User* user;    // Указатель на владельца счета
+    struct Transaction* transactions; // Список транзакций на счете
+    struct Score* next;  // Указатель на следующий счет в списке
+};
+
+// Структура для хранения информации о цели
+struct Goal { //ТРИ
+    char name[50];           // Название цели (например, "Отпуск", "Автомобиль")
+    float targetAmount;       // Целевая сумма 
+    float savedAmount;        // Сумма, накопленная на данный момент
+    struct User* user;    // Указатель на владельца цели
+    struct Goal* next;        // Указатель на следующую цель в списке
+};
+
+
+struct Transaction { //ЧЕТЫРЕ
+    char description[100]; // Описание транзакции
+    float amount;          // Сумма транзакции
+    char date[11];        // Дата транзакции (DD-MM-YYYY)
+    char type[10];        // Тип транзакции (доход/расход)
+    struct Score* Score; // Счет, к которому относится транзакция
+    struct Category* category; // Категория, к которой относится транзакция
+    struct Transaction* next;  // Указатель на следующую транзакцию в списке
+};
+
+struct Contribution { //ПЯТЬ
+    int percent; //годовые проценты
+    int minimum_deposit; //минимальный взнос на вклад  
+    struct User* user; //Указатель на пользователя
+};
+//Структура для конвертации баланс в три основные валюты 
+struct Conversion { //ШЕСТЬ
+    int USD; //доллар (цент)
+    int EUR; //евро (евроцент)
+    int CNY; //юань (фынь)
+    struct User* user;
+};
+
+
+// Структура для хранения информации о категории
+struct Category { //СЕМЬ
+    char name[50];         // Название категории (например, "Продукты", "Транспорт")
+    struct Category* next;  // Указатель на следующую категорию в списке
+};
+
+
+// Структура для кредитов
+typedef struct Loan { //ВОСЕМЬ
+    int amount;              // Сумма кредита
+    int interestRate;        // Процентная ставка
+    struct User* user;         // Указатель на главную структуру User
+    struct Loan* next;         // Указатель на следующий кредит
+} Loan;
+
+struct Analytics {
+    int totalIncome;
+    int totalExpense;
+    struct User* user;
+    struct Score* score;
 };
 
 //Подсчёт количества пользователей
@@ -51,41 +109,41 @@ User creat(int id) {
 }
 
 // Функция для чтения аккаунтов из файла
-void loadAccounts(User accounts[], int* accountCount) {
+void loadScores(User Scores[], int* ScoreCount) {
     FILE* file = fopen("User.txt", "r");
     if (file == NULL) {
         printf("Ошибка при открытии файла User.txt\n");
         return;
     }
-    fscanf(file, "%d", accountCount); // Считываем количество пользователей
-    for (int i = 0; i < *accountCount; i++) {
-        fscanf(file, "%d %s %s %f", &accounts[i].id,
-            accounts[i].username,
-            accounts[i].password,
-            &accounts[i].balance);
+    fscanf(file, "%d", ScoreCount); // Считываем количество пользователей
+    for (int i = 0; i < *ScoreCount; i++) {
+        fscanf(file, "%d %s %s %f", &Scores[i].id,
+            Scores[i].username,
+            Scores[i].password,
+            &Scores[i].balance);
     }
     fclose(file);
 }
 
 // Функция для сохранения аккаунтов в файл
-void saveAccounts(User accounts[], int accountCount) {
+void saveScores(User Scores[], int ScoreCount) {
     FILE* file = fopen("User.txt", "w");
     if (file == NULL) {
         printf("Ошибка при открытии файла User.txt\n");
         return;
     }
-    fprintf(file, "%d\n", accountCount); // Сохраняем количество пользователей
-    for (int i = 0; i < accountCount; i++) {
-        fprintf(file, "%d %s %s %.2f\n", accounts[i].id,
-            accounts[i].username,
-            accounts[i].password,
-            accounts[i].balance);
+    fprintf(file, "%d\n", ScoreCount); // Сохраняем количество пользователей
+    for (int i = 0; i < ScoreCount; i++) {
+        fprintf(file, "%d %s %s %.2f\n", Scores[i].id,
+            Scores[i].username,
+            Scores[i].password,
+            Scores[i].balance);
     }
     fclose(file);
 }
 
 // Функция входа в систему
-User* login(User accounts[], int accountCount) {
+User* login(User Scores[], int ScoreCount) {
     char nickname[MAX_USERNAME_LEN];
     char password[MAX_PASSWORD_LEN];
     int flag = 0;
@@ -97,12 +155,12 @@ User* login(User accounts[], int accountCount) {
         printf("Введите пароль: ");
         scanf("%s", password);
 
-        for (int i = 0; i < accountCount; i++) {
-            if (strcmp(accounts[i].username, nickname) == 0 &&
-                strcmp(accounts[i].password, password) == 0) {
+        for (int i = 0; i < ScoreCount; i++) {
+            if (strcmp(Scores[i].username, nickname) == 0 &&
+                strcmp(Scores[i].password, password) == 0) {
                 flag = 3;
-                printf("Вход выполнен! Ваш баланс: %.2f\n", accounts[i].balance);
-                return &accounts[i];
+                printf("Вход выполнен! Ваш баланс: %.2f\n", Scores[i].balance);
+                return &Scores[i];
             }
         }
         flag++;
@@ -163,8 +221,8 @@ int main() {
     
     count = getUser();
    
-    User* accounts = (User*)calloc(count, sizeof(User));
-    loadAccounts(accounts, &count);
+    User* Scores = (User*)calloc(count, sizeof(User));
+    loadScores(Scores, &count);
     int choise; //Выбор действия
     do {
         printf("\nВыберите действие:\n1 - Войти в аккаунт\n2 - Создать аккаунт\n");
@@ -175,14 +233,14 @@ int main() {
     } while (choise != 1 && choise != 2);
     User* currentUser = NULL;
     if (choise == 1){
-        currentUser = login(accounts, count);
+        currentUser = login(Scores, count);
     }
     if (choise == 2 || currentUser == NULL) {
         User NewUser = creat(count + 1);
-        accounts[count] = NewUser; // Добавляем нового пользователя в массив
+        Scores[count] = NewUser; // Добавляем нового пользователя в массив
         count++; // Увеличиваем счетчик пользователей
-        saveAccounts(accounts, count); // Сохраняем изменённые данные в файл
-        currentUser = &accounts[count - 1]; // Указываем на нового пользователя
+        saveScores(Scores, count); // Сохраняем изменённые данные в файл
+        currentUser = &Scores[count - 1]; // Указываем на нового пользователя
         printf("Аккаунт создан! Ваш баланс: %.2f\n", currentUser->balance);
     }
     // Если пользователь вошел в систему
@@ -217,7 +275,7 @@ int main() {
                 viewFinanceReport(currentUser->id);
                 break;
             case 'Q':
-                saveAccounts(accounts, count);
+                saveScores(Scores, count);
                 printf("Вы вышли из системы.\n");
                 break;
             default:
@@ -225,8 +283,7 @@ int main() {
                 break;
             }
         } while (action != 'Q');
-    }
-
+    }    
     return 0;
    
 }
